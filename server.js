@@ -5,7 +5,24 @@ require('dotenv').config();
 
 const app = express();
 
-const builder = new addonBuilder({
+// 🔐 Authentification simple (optionnelle)
+app.use((req, res, next) => {
+  const auth = { login: "admin", password: "1234" };
+
+  const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
+  const [login, password] = Buffer.from(b64auth, 'base64').toString().split(':');
+
+  if (login === auth.login && password === auth.password) return next();
+
+  res.set('WWW-Authenticate', 'Basic realm="Stremio Addon"');
+  res.status(401).send('Accès refusé');
+});
+
+const xtreamHost = process.env.XTREAM_HOST;
+const xtreamUser = process.env.XTREAM_USER;
+const xtreamPass = process.env.XTREAM_PASS;
+
+const manifest = {
   id: 'community.xtreamaddon',
   version: '1.0.0',
   name: 'Xtream IPTV',
@@ -13,21 +30,11 @@ const builder = new addonBuilder({
   types: ['tv'],
   catalogs: [{ type: 'tv', id: 'xtream' }],
   resources: ['catalog', 'stream'],
-});
+};
+
+const builder = new addonBuilder(manifest);
 
 builder.defineCatalogHandler(async () => {
-  // ... ton code ici
-});
-
-builder.defineStreamHandler(async ({ id }) => {
-  // ... ton code ici
-});
-
-app.get('/manifest.json', (_, res) => {
-  res.send(builder.getManifest()); // ✅ CORRECT
-});
-
-app.use('/', builder.getMiddleware());
-
-const port = process.env.PORT || 3000;
-app.listen(port, () => console.log(`Addon en cours d'exécution sur le port ${port}`));
+  try {
+    const { data } = await axios.get(`${xtreamHost}/player_api.php?username=${xtreamUser}&password=${xtreamPass}`);
+    const channels = data?.available_channels || data?.channels || [];
