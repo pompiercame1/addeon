@@ -5,10 +5,9 @@ require('dotenv').config();
 
 const app = express();
 
-// 🔐 Authentification HTTP basique
+// 🔐 Authentification HTTP basique (facultatif)
 app.use((req, res, next) => {
-  const auth = { login: 'admin', password: '1234' }; // Personnalise ici si besoin
-
+  const auth = { login: 'admin', password: '1234' };
   const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
   const [login, password] = Buffer.from(b64auth, 'base64').toString().split(':');
 
@@ -18,7 +17,7 @@ app.use((req, res, next) => {
   res.status(401).send('Accès refusé');
 });
 
-// 🌐 Configuration Xtream via variables d’environnement
+// 🔧 Configuration Xtream via .env
 const xtreamHost = process.env.XTREAM_HOST;
 const xtreamUser = process.env.XTREAM_USER;
 const xtreamPass = process.env.XTREAM_PASS;
@@ -58,26 +57,32 @@ builder.defineCatalogHandler(async () => {
   }
 });
 
-// 📡 Gestion des flux vidéo
+// 📡 Gestion du flux
 builder.defineStreamHandler(({ id }) => {
   const streamUrl = `${xtreamHost}/live/${xtreamUser}/${xtreamPass}/${id}.ts`;
-  return Promise.resolve({
-    streams: [{ title: 'Live Stream', url: streamUrl }]
-  });
+  return Promise.resolve({ streams: [{ title: 'Live Stream', url: streamUrl }] });
 });
 
+// 🔄 Définir les routes manuellement (au lieu de getMiddleware)
 const addonInterface = builder.getInterface();
 
-// 📄 Route manifest
 app.get('/manifest.json', (_, res) => {
-  res.send(manifest);
+  res.json(manifest);
 });
 
-// 🔄 Middleware de l'addon (corrigé ici)
-app.use('/', addonInterface);
+app.get('/catalog/:type/:id/list.json', async (req, res) => {
+  const { metas } = await addonInterface.get(`/catalog/${req.params.type}/${req.params.id}`);
+  res.json({ metas });
+});
 
-// 🚀 Démarrage du serveur
+app.get('/stream/:type/:id.json', async (req, res) => {
+  const { streams } = await addonInterface.get(`/stream/${req.params.type}/${req.params.id}`);
+  res.json({ streams });
+});
+
+// 🚀 Lancer le serveur
 const port = process.env.PORT || 10000;
 app.listen(port, () => {
   console.log(`✅  Addon Stremio en ligne sur le port ${port}`);
 });
+
