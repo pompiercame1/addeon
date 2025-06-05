@@ -7,7 +7,7 @@ const app = express();
 
 // 🔐 Authentification HTTP basique
 app.use((req, res, next) => {
-  const auth = { login: 'admin', password: '1234' }; // Modifie ici si besoin
+  const auth = { login: 'admin', password: '1234' }; // Personnalise ici si besoin
 
   const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
   const [login, password] = Buffer.from(b64auth, 'base64').toString().split(':');
@@ -18,7 +18,7 @@ app.use((req, res, next) => {
   res.status(401).send('Accès refusé');
 });
 
-// 🔧 Configuration Xtream via .env
+// 🌐 Configuration Xtream via variables d’environnement
 const xtreamHost = process.env.XTREAM_HOST;
 const xtreamUser = process.env.XTREAM_USER;
 const xtreamPass = process.env.XTREAM_PASS;
@@ -36,7 +36,7 @@ const manifest = {
 
 const builder = new addonBuilder(manifest);
 
-// 📺 Gestion du catalogue (chaînes IPTV)
+// 📺 Gestion du catalogue
 builder.defineCatalogHandler(async () => {
   try {
     const url = `${xtreamHost}/player_api.php?username=${xtreamUser}&password=${xtreamPass}`;
@@ -58,21 +58,25 @@ builder.defineCatalogHandler(async () => {
   }
 });
 
-// 📡 Gestion du flux (lecture vidéo)
+// 📡 Gestion des flux vidéo
 builder.defineStreamHandler(({ id }) => {
   const streamUrl = `${xtreamHost}/live/${xtreamUser}/${xtreamPass}/${id}.ts`;
-  return Promise.resolve({ streams: [{ title: 'Live Stream', url: streamUrl }] });
+  return Promise.resolve({
+    streams: [{ title: 'Live Stream', url: streamUrl }]
+  });
 });
 
-// 🔄 Rendu du manifest et middleware
 const addonInterface = builder.getInterface();
 
+// 📄 Route manifest
 app.get('/manifest.json', (_, res) => {
-  res.send(addonInterface.manifest);
+  res.send(manifest);
 });
 
-app.use('/', addonInterface.getMiddleware());
+// 🔄 Middleware de l'addon (corrigé ici)
+app.use('/', addonInterface);
 
+// 🚀 Démarrage du serveur
 const port = process.env.PORT || 10000;
 app.listen(port, () => {
   console.log(`✅  Addon Stremio en ligne sur le port ${port}`);
