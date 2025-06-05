@@ -62,7 +62,7 @@ app.get('/manifest.json', (_, res) => {
   res.send(builder.getInterface().getManifest());
 });
 
-app.get('*', builder.getInterface());
+app.use('/', builder.getInterface());
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`Addon en cours d'exécution sur le port ${port}`));
