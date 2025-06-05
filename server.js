@@ -5,29 +5,16 @@ require('dotenv').config();
 
 const app = express();
 
-// 🔐 Authentification HTTP basique (facultatif)
-app.use((req, res, next) => {
-  const auth = { login: 'admin', password: '1234' };
-  const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
-  const [login, password] = Buffer.from(b64auth, 'base64').toString().split(':');
-
-  if (login === auth.login && password === auth.password) return next();
-
-  res.set('WWW-Authenticate', 'Basic realm="Stremio Addon"');
-  res.status(401).send('Accès refusé');
-});
-
-// 🔧 Configuration Xtream via .env
+// Configuration Xtream
 const xtreamHost = process.env.XTREAM_HOST;
 const xtreamUser = process.env.XTREAM_USER;
 const xtreamPass = process.env.XTREAM_PASS;
 
-// 📦 Manifest de l'addon
 const manifest = {
   id: 'community.xtreamaddon',
   version: '1.0.0',
   name: 'Xtream IPTV',
-  description: 'Regarder IPTV via Xtream Codes',
+  description: 'Regarder IPTV via les codes Xtream',
   types: ['tv'],
   catalogs: [{ type: 'tv', id: 'xtream' }],
   resources: ['catalog', 'stream'],
@@ -35,7 +22,7 @@ const manifest = {
 
 const builder = new addonBuilder(manifest);
 
-// 📺 Gestion du catalogue
+// Gestion du catalogue IPTV
 builder.defineCatalogHandler(async () => {
   try {
     const url = `${xtreamHost}/player_api.php?username=${xtreamUser}&password=${xtreamPass}`;
@@ -52,37 +39,32 @@ builder.defineCatalogHandler(async () => {
 
     return { metas };
   } catch (err) {
-    console.error('Erreur lors de la récupération des chaînes:', err.message);
+    console.error('Erreur de catalogue:', err.message);
     return { metas: [] };
   }
 });
 
-// 📡 Gestion du flux
+// Gestion du stream vidéo
 builder.defineStreamHandler(({ id }) => {
   const streamUrl = `${xtreamHost}/live/${xtreamUser}/${xtreamPass}/${id}.ts`;
   return Promise.resolve({ streams: [{ title: 'Live Stream', url: streamUrl }] });
 });
 
-// 🔄 Définir les routes manuellement (au lieu de getMiddleware)
 const addonInterface = builder.getInterface();
 
+// Servir le manifest
 app.get('/manifest.json', (_, res) => {
   res.json(manifest);
 });
 
-app.get('/catalog/:type/:id/list.json', async (req, res) => {
-  const { metas } = await addonInterface.get(`/catalog/${req.params.type}/${req.params.id}`);
-  res.json({ metas });
+// Middleware Stremio (🔥 ici la vraie méthode correcte)
+app.use('/', (req, res) => {
+  addonInterface(req, res);
 });
 
-app.get('/stream/:type/:id.json', async (req, res) => {
-  const { streams } = await addonInterface.get(`/stream/${req.params.type}/${req.params.id}`);
-  res.json({ streams });
-});
-
-// 🚀 Lancer le serveur
-const port = process.env.PORT || 10000;
-app.listen(port, () => {
-  console.log(`✅  Addon Stremio en ligne sur le port ${port}`);
+// Lancer le serveur
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
+  console.log(`✅ Addon Stremio en ligne sur le port ${PORT}`);
 });
 
