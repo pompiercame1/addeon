@@ -7,7 +7,7 @@ const app = express();
 
 // 🔐 Authentification simple
 app.use((req, res, next) => {
-  const auth = { login: "admin", password: "1234" }; // ← modifie ici
+  const auth = { login: "admin", password: "1234" }; // ← change ce mot de passe si tu veux
 
   const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
   const [login, password] = Buffer.from(b64auth, 'base64').toString().split(':');
@@ -18,10 +18,12 @@ app.use((req, res, next) => {
   res.status(401).send('Accès refusé');
 });
 
+// 📡 Infos Xtream tirées du fichier .env
 const xtreamHost = process.env.XTREAM_HOST;
 const xtreamUser = process.env.XTREAM_USER;
 const xtreamPass = process.env.XTREAM_PASS;
 
+// 📄 Déclaration du manifest
 const manifest = {
   id: 'community.xtreamaddon',
   version: '1.0.0',
@@ -34,6 +36,7 @@ const manifest = {
 
 const builder = new addonBuilder(manifest);
 
+// 📺 Handler du catalogue TV
 builder.defineCatalogHandler(async () => {
   try {
     const { data } = await axios.get(`${xtreamHost}/player_api.php?username=${xtreamUser}&password=${xtreamPass}`);
@@ -48,21 +51,26 @@ builder.defineCatalogHandler(async () => {
 
     return { metas };
   } catch (err) {
-    console.error(err.message);
+    console.error('Erreur lors de la récupération du catalogue :', err.message);
     return { metas: [] };
   }
 });
 
+// 🎬 Handler du stream
 builder.defineStreamHandler(async ({ id }) => {
   const url = `${xtreamHost}/live/${xtreamUser}/${xtreamPass}/${id}.ts`;
   return { streams: [{ title: "Live Stream", url }] };
 });
 
+// 📄 Endpoints requis pour Stremio
 app.get('/manifest.json', (_, res) => {
   res.send(builder.getInterface().getManifest());
 });
 
-app.use('/', builder.getMiddleware());
+app.get('/', (_, res) => {
+  res.send(builder.getInterface());
+});
 
+// 🚀 Lancement du serveur
 const port = process.env.PORT || 3000;
-app.listen(port, () => console.log(`Addon en cours d'exécution sur le port ${port}`));
+app.listen(port, () => console.log(`✅ Addon en ligne sur le port ${port}`));
