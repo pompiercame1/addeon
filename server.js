@@ -38,3 +38,49 @@ builder.defineCatalogHandler(async () => {
   try {
     const { data } = await axios.get(`${xtreamHost}/player_api.php?username=${xtreamUser}&password=${xtreamPass}`);
     const channels = data?.available_channels || data?.channels || [];
+
+    const metas = channels.map(ch => ({
+      id: ch.stream_id.toString(),
+      type: 'tv',
+      name: ch.name,
+      poster: ch.stream_icon,
+    }));
+
+    return { metas };
+  } catch (err) {
+    console.error(err.message);
+    return { metas: [] };
+  }
+});
+
+builder.defineStreamHandler(async ({ id }) => {
+  const url = `${xtreamHost}/live/${xtreamUser}/${xtreamPass}/${id}.ts`;
+  return { streams: [{ title: "Live Stream", url }] };
+});
+
+const addonInterface = builder.getInterface();
+
+app.get('/manifest.json', (_, res) => {
+  res.json(addonInterface.manifest);
+});
+
+app.get('/catalog/:type/:id/:extra?.json', (req, res) => {
+  addonInterface.catalog(req.params, req.query)
+    .then(resp => res.json(resp))
+    .catch(err => {
+      console.error(err);
+      res.status(500).send('Erreur catalogue');
+    });
+});
+
+app.get('/stream/:type/:id.json', (req, res) => {
+  addonInterface.stream(req.params)
+    .then(resp => res.json(resp))
+    .catch(err => {
+      console.error(err);
+      res.status(500).send('Erreur stream');
+    });
+});
+
+const port = process.env.PORT || 3000;
+app.listen(port, () => console.log(`✅ Addon Stremio en ligne sur le port ${port}`));
