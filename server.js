@@ -10,6 +10,7 @@ const xtreamHost = process.env.XTREAM_HOST;
 const xtreamUser = process.env.XTREAM_USER;
 const xtreamPass = process.env.XTREAM_PASS;
 
+// Manifest de l'addon
 const manifest = {
   id: 'community.xtreamaddon',
   version: '1.0.0',
@@ -22,7 +23,7 @@ const manifest = {
 
 const builder = new addonBuilder(manifest);
 
-// Gestion du catalogue IPTV
+// Gestion du catalogue
 builder.defineCatalogHandler(async () => {
   try {
     const url = `${xtreamHost}/player_api.php?username=${xtreamUser}&password=${xtreamPass}`;
@@ -39,32 +40,25 @@ builder.defineCatalogHandler(async () => {
 
     return { metas };
   } catch (err) {
-    console.error('Erreur de catalogue:', err.message);
+    console.error('Erreur dans le catalogue :', err.message);
     return { metas: [] };
   }
 });
 
-// Gestion du stream vidéo
+// Gestion du stream
 builder.defineStreamHandler(({ id }) => {
   const streamUrl = `${xtreamHost}/live/${xtreamUser}/${xtreamPass}/${id}.ts`;
-  return Promise.resolve({ streams: [{ title: 'Live Stream', url: streamUrl }] });
+  return Promise.resolve({ streams: [{ title: 'Live', url: streamUrl }] });
 });
 
+// Interface de l'addon
 const addonInterface = builder.getInterface();
 
-// Servir le manifest
-app.get('/manifest.json', (_, res) => {
-  res.json(manifest);
-});
+// ✅ Middleware correct ici
+app.use('/', addonInterface.getMiddleware());
 
-// Middleware Stremio (🔥 ici la vraie méthode correcte)
-app.use('/', (req, res) => {
-  addonInterface(req, res);
-});
-
-// Lancer le serveur
+// Port d'écoute
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`✅ Addon Stremio en ligne sur le port ${PORT}`);
 });
-
